@@ -731,7 +731,7 @@ function FilterCell({col, filter, condition, onChange, onConditionChange, onClea
 
             {/* Value chip */}
             <div style={{
-              flex:1,minWidth:80, maxWidth: 150,display:'flex',alignItems:'center',
+              flex:1,minWidth:80, maxWidth: 120,display:'flex',alignItems:'center',
               background:'#EEF1FF',border:'0.5px solid #B5C0F5',
               borderRadius:6,overflow:'hidden',height:28,
             }}>
@@ -1067,28 +1067,46 @@ export default function FinanceGrid() {
       '--color-text-tertiary':'#877F93',
       '--font-sans':'"Inter", "Segoe UI", sans-serif',
       background:'var(--color-background-tertiary)',
-      minHeight:'100vh',
+      height:'100dvh',
+      boxSizing:'border-box',
       padding:10,
-      fontFamily:'var(--font-sans)'
+      fontFamily:'var(--font-sans)',
+      display:'flex',
+      flexDirection:'column',
     }}>
-      <div style={{background:'var(--color-background-primary)',borderRadius:6,overflow:'hidden',border:'0.5px solid var(--color-border-tertiary)'}}>
+      <div style={{
+        flex:1,minHeight:0,
+        background:'var(--color-background-primary)',
+        borderRadius:6,
+        border:'0.5px solid var(--color-border-tertiary)',
+        display:'flex',flexDirection:'column',
+        overflow:'hidden',
+      }}>
 
         {/* Header */}
-        <div style={{padding:'14px 14px 10px 14px'}}>
+        <div style={{padding:'14px 14px 10px 14px',flexShrink:0}}>
           <div style={{fontSize:16,fontWeight:500,color:'var(--color-text-primary)'}}>
             Home Finance Transactions
           </div>
         </div>
 
         {/* Grid */}
-        <div style={{overflowX:'auto',borderTop:'0.5px solid var(--color-border-tertiary)',borderBottom:'0.5px solid var(--color-border-tertiary)',margin:'0 14px',borderRadius:6,border:'0.5px solid var(--color-border-secondary)'}}>
+        <div style={{
+          flex:1,minHeight:0,
+          display:'flex',flexDirection:'column',
+          overflowX:'auto',
+          borderTop:'0.5px solid var(--color-border-tertiary)',
+          margin:'0 14px',
+          borderRadius:6,
+          border:'0.5px solid var(--color-border-secondary)',
+        }}>
           {/* Column headers */}
-          <div style={{display:'grid',gridTemplateColumns:gridTemplate,minWidth:900,borderBottom:'1.5px solid var(--color-text-primary)',background:'var(--color-background-primary)'}}>
+          <div style={{display:'grid',gridTemplateColumns:gridTemplate,minWidth:900,borderBottom:'1.5px solid var(--color-text-primary)',background:'var(--color-background-primary)',flexShrink:0}}>
             {COLS.map(col=><ColHeader key={col.key} col={col} sortCfg={sort} onSort={k=>setSort(p=>({key:k,dir:p.key===k?(p.dir==='asc'?'desc':'asc'):'asc'}))}/>)}
           </div>
 
           {/* Filter row */}
-          <div style={{display:'grid',gridTemplateColumns:gridTemplate,minWidth:900,borderBottom:'0.5px solid var(--color-border-secondary)',background:'var(--color-background-primary)'}}>
+          <div style={{display:'grid',gridTemplateColumns:gridTemplate,minWidth:900,borderBottom:'0.5px solid var(--color-border-secondary)',background:'var(--color-background-primary)',flexShrink:0}}>
             {COLS.map(col=>(
               <FilterCell
                 key={col.key}
@@ -1104,7 +1122,7 @@ export default function FinanceGrid() {
           </div>
 
           {/* Rows */}
-          <div style={{minWidth:900}}>
+          <div style={{minWidth:900,flex:1,overflowY:'auto',minHeight:0}}>
             {filtered.length===0 ? (
               <div style={{padding:'40px 8px',textAlign:'center',color:'var(--color-text-tertiary)',fontSize:14}}>
                 No transactions match the current filters.
@@ -1118,6 +1136,7 @@ export default function FinanceGrid() {
           <div style={{
             background:'var(--color-background-secondary)',borderTop:'0.5px solid var(--color-border-secondary)',
             padding:'7px 14px',display:'flex',justifyContent:'flex-end',alignItems:'center',gap:16,
+            flexShrink:0,
           }}>
             {filtered.length>0 ? <>
               <span style={{fontSize:11.5,color:'var(--color-text-tertiary)'}}>
@@ -1133,7 +1152,7 @@ export default function FinanceGrid() {
           </div>
         </div>
 
-        <div style={{height:4}}/>
+        <div style={{height:4,flexShrink:0}}/>
       </div>
     </div>
   );
