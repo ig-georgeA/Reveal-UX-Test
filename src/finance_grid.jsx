@@ -123,6 +123,13 @@ function applyColFilter(data, col, filter, cond) {
   return data;
 }
 
+function WarningIcon() {
+  return <svg width="13" height="13" viewBox="0 0 14 14" fill="none" style={{flexShrink:0}}>
+    <path d="M7 1.5L13 12.5H1L7 1.5Z" stroke="#C97B0A" strokeWidth="1.3" strokeLinejoin="round" fill="#FEF3D7"/>
+    <path d="M7 6V9" stroke="#C97B0A" strokeWidth="1.3" strokeLinecap="round"/>
+    <circle cx="7" cy="10.5" r="0.65" fill="#C97B0A"/>
+  </svg>;
+}
 function ChevronDown() {
   return <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2.5 4L5 6.5L7.5 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>;
 }
@@ -283,6 +290,7 @@ function FilterPopoverContent({ col, value, condition, uniqueVals, initialSelect
   const draftIsEmpty = normalizeFilterValue(col.type, value) === null;
   const [selectQuery, setSelectQuery] = useState('');
   const [showDatePresets, setShowDatePresets] = useState(false);
+  const [showDisabled, setShowDisabled] = useState(false);
 
   // Auto-select entries matching the typed query — appends to existing selection
   // Only considers items that aren't filtered out by other columns.
@@ -321,7 +329,7 @@ function FilterPopoverContent({ col, value, condition, uniqueVals, initialSelect
   return (
     <Popover.Portal>
       <Popover.Content
-        onInteractOutside={onCommit}
+        onInteractOutside={onCancel}
         onEscapeKeyDown={onCancel}
         side="bottom"
         sideOffset={-44}
@@ -369,60 +377,101 @@ function FilterPopoverContent({ col, value, condition, uniqueVals, initialSelect
                 padding:'6px 8px',border:'0.5px solid #DCD7E5',borderRadius:6,
                 outline:'none',fontFamily:'inherit',color:'#575064',marginBottom:6}}
             />
-            <div style={{maxHeight:220,overflowY:'auto',border:'0.5px solid #E8E4EF',borderRadius:6}}>
-              {/* Render using open-time snapshot order; live value drives checkbox state */}
-              {selectedVals.map(v => (
-                <label key={`s-${v}`} style={{display:'flex',alignItems:'center',gap:8,
-                  padding:'6px 10px',cursor:'pointer',fontSize:13,color:'#575064',
-                  background:'#F8F7FA'}}>
-                  <input type="checkbox"
-                    checked={Array.isArray(value) && value.includes(v)}
-                    onChange={()=>{
-                      const arr=Array.isArray(value)?[...value]:[];
-                      const next = arr.includes(v) ? arr.filter(x=>x!==v) : [...arr,v];
-                      onValueChange(next);
-                    }} style={{accentColor:'#6988FF',flexShrink:0}}/>
-                  {v}
-                </label>
-              ))}
-              {selectedVals.length > 0 && (availableOther.length > 0 || disabledOther.length > 0) && (
-                <div style={{height:1,background:'#E8E4EF',margin:'2px 0'}} />
-              )}
-              {availableOther.map(v => (
-                <label key={`o-${v}`} style={{display:'flex',alignItems:'center',gap:8,
-                  padding:'6px 10px',cursor:'pointer',fontSize:13,color:'#575064'}}>
-                  <input type="checkbox"
-                    checked={Array.isArray(value) && value.includes(v)}
-                    onChange={()=>{
-                      const arr=Array.isArray(value)?[...value]:[];
-                      const next = arr.includes(v) ? arr.filter(x=>x!==v) : [...arr,v];
-                      onValueChange(next);
-                    }} style={{accentColor:'#6988FF',flexShrink:0}}/>
-                  {v}
-                </label>
-              ))}
-              {disabledOther.length > 0 && (
-                <>
+            <div style={{border:'0.5px solid #E8E4EF',borderRadius:6,display:'flex',flexDirection:'column',maxHeight:220}}>
+              <div style={{overflowY:'auto',flex:1,minHeight:0}}>
+                {/* Render using open-time snapshot order; live value drives checkbox state */}
+                {selectedVals.map(v => (
+                  <label key={`s-${v}`} style={{display:'flex',alignItems:'center',gap:8,
+                    padding:'6px 10px',cursor:'pointer',fontSize:13,color:'#575064',
+                    background:'#F8F7FA'}}>
+                    <input type="checkbox"
+                      checked={Array.isArray(value) && value.includes(v)}
+                      onChange={()=>{
+                        const arr=Array.isArray(value)?[...value]:[];
+                        const next = arr.includes(v) ? arr.filter(x=>x!==v) : [...arr,v];
+                        onValueChange(next);
+                      }} style={{accentColor:'#6988FF',flexShrink:0}}/>
+                    {v}
+                  </label>
+                ))}
+                {selectedVals.length > 0 && (availableOther.length > 0 || disabledOther.length > 0) && (
                   <div style={{height:1,background:'#E8E4EF',margin:'2px 0'}} />
-                  <div style={{padding:'4px 10px 3px',fontSize:10.5,fontWeight:500,
-                    textTransform:'uppercase',letterSpacing:.5,color:'#ADA7B8'}}>
-                    Filtered by other columns
-                  </div>
-                  {disabledOther.map(v => (
-                    <label key={`d-${v}`}
-                      title="Filtered out by another column"
-                      style={{display:'flex',alignItems:'center',gap:8,
-                        padding:'6px 10px',cursor:'not-allowed',fontSize:13,
-                        color:'#C4BFD0',opacity:.7,userSelect:'none'}}>
-                      <input type="checkbox" disabled checked={false}
-                        style={{accentColor:'#6988FF',flexShrink:0,cursor:'not-allowed'}}/>
-                      {v}
-                    </label>
-                  ))}
-                </>
-              )}
-              {selectedVals.length === 0 && availableOther.length === 0 && disabledOther.length === 0 && (
-                <div style={{padding:'10px',fontSize:12.5,color:'#877F93',textAlign:'center'}}>No matches</div>
+                )}
+                {availableOther.map(v => (
+                  <label key={`o-${v}`} style={{display:'flex',alignItems:'center',gap:8,
+                    padding:'6px 10px',cursor:'pointer',fontSize:13,color:'#575064'}}>
+                    <input type="checkbox"
+                      checked={Array.isArray(value) && value.includes(v)}
+                      onChange={()=>{
+                        const arr=Array.isArray(value)?[...value]:[];
+                        const next = arr.includes(v) ? arr.filter(x=>x!==v) : [...arr,v];
+                        onValueChange(next);
+                      }} style={{accentColor:'#6988FF',flexShrink:0}}/>
+                    {v}
+                  </label>
+                ))}
+                {showDisabled && disabledOther.length > 0 && (
+                  <>
+                    <button
+                      onClick={() => setShowDisabled(false)}
+                      style={{
+                        position:'sticky',top:0,zIndex:1,
+                        display:'flex',alignItems:'center',justifyContent:'space-between',
+                        width:'100%',padding:'6px 10px',boxSizing:'border-box',
+                        background:'#FFFBF2',border:'none',borderTop:'1px solid #F5E8C0',
+                        borderBottom:'1px solid #F5E8C0',
+                        cursor:'pointer',fontFamily:'inherit',
+                      }}
+                    >
+                      <span style={{display:'flex',alignItems:'center',gap:5}}>
+                        <WarningIcon/>
+                        <span style={{fontSize:12,fontWeight:500,color:'#A0672A'}}>
+                          +{disabledOther.length} hidden by other filters
+                        </span>
+                      </span>
+                      <span style={{color:'#C97B0A',display:'flex',alignItems:'center'}}>
+                        <ChevronDown/>
+                      </span>
+                    </button>
+                    {disabledOther.map(v => (
+                      <label key={`d-${v}`}
+                        title="Filtered out by another column"
+                        style={{display:'flex',alignItems:'center',gap:8,
+                          padding:'6px 10px',cursor:'not-allowed',fontSize:13,
+                          color:'#C4BFD0',userSelect:'none',background:'#FFFBF2'}}>
+                        <input type="checkbox" disabled checked={false}
+                          style={{accentColor:'#6988FF',flexShrink:0,cursor:'not-allowed'}}/>
+                        {v}
+                      </label>
+                    ))}
+                  </>
+                )}
+                {selectedVals.length === 0 && availableOther.length === 0 && disabledOther.length === 0 && (
+                  <div style={{padding:'10px',fontSize:12.5,color:'#877F93',textAlign:'center'}}>No matches</div>
+                )}
+              </div>
+              {disabledOther.length > 0 && !showDisabled && (
+                <button
+                  onClick={() => setShowDisabled(true)}
+                  style={{
+                    display:'flex',alignItems:'center',justifyContent:'space-between',
+                    width:'100%',padding:'6px 10px',boxSizing:'border-box',
+                    background:'#FFFBF2',border:'none',borderTop:'1px solid #F5E8C0',
+                    cursor:'pointer',fontFamily:'inherit',borderRadius:'0 0 5px 5px',
+                    flexShrink:0,
+                  }}
+                >
+                  <span style={{display:'flex',alignItems:'center',gap:5}}>
+                    <WarningIcon/>
+                    <span style={{fontSize:12,fontWeight:500,color:'#A0672A'}}>
+                      +{disabledOther.length} hidden by other filters
+                    </span>
+                  </span>
+                  <span style={{color:'#C97B0A',display:'flex',alignItems:'center',
+                    transform:'rotate(-90deg)'}}>
+                    <ChevronDown/>
+                  </span>
+                </button>
               )}
             </div>
           </div>
@@ -518,31 +567,44 @@ function FilterPopoverContent({ col, value, condition, uniqueVals, initialSelect
           )
         )}
 
-        {/* Footer: CLEAR | APPLY */}
-        <div style={{display:'flex',justifyContent:'flex-end',gap:6,marginTop:12,paddingTop:10,borderTop:'0.5px solid #E8E4EF'}}>
+        {/* Footer: CLEAR (left) | CANCEL APPLY (right) */}
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginTop:12,paddingTop:10,borderTop:'0.5px solid #E8E4EF'}}>
           <button
             disabled={draftIsEmpty}
             onClick={onClearAll}
             style={{
-              padding:'5px 13px',fontSize:12.5,fontFamily:'inherit',
-              border:'0.5px solid #DCD7E5',borderRadius:6,cursor:draftIsEmpty?'default':'pointer',
-              background:'none',color:draftIsEmpty?'#C4BFD0':'#575064',
-              transition:'background .12s',
+              padding:'5px 8px',fontSize:12.5,fontFamily:'inherit',
+              border:'none',borderRadius:6,cursor:draftIsEmpty?'default':'pointer',
+              background:'none',color:draftIsEmpty?'#C4BFD0':'#877F93',
+              transition:'color .12s',
             }}
-            onMouseEnter={e=>{ if(!draftIsEmpty) e.currentTarget.style.background='#F5F4F9'; }}
-            onMouseLeave={e=>{ e.currentTarget.style.background='none'; }}
+            onMouseEnter={e=>{ if(!draftIsEmpty) e.currentTarget.style.color='#4B6EF5'; }}
+            onMouseLeave={e=>{ if(!draftIsEmpty) e.currentTarget.style.color='#877F93'; }}
           >Clear</button>
-          <button
-            onClick={onCommit}
-            style={{
-              padding:'5px 13px',fontSize:12.5,fontFamily:'inherit',
-              border:'none',borderRadius:6,cursor:'pointer',
-              background:'#4B6EF5',color:'#fff',fontWeight:500,
-              transition:'opacity .12s',
-            }}
-            onMouseEnter={e=>{ e.currentTarget.style.opacity='0.85'; }}
-            onMouseLeave={e=>{ e.currentTarget.style.opacity='1'; }}
-          >Apply</button>
+          <div style={{display:'flex',gap:6}}>
+            <button
+              onClick={onCancel}
+              style={{
+                padding:'5px 13px',fontSize:12.5,fontFamily:'inherit',
+                border:'0.5px solid #DCD7E5',borderRadius:6,cursor:'pointer',
+                background:'none',color:'#575064',
+                transition:'background .12s',
+              }}
+              onMouseEnter={e=>{ e.currentTarget.style.background='#F5F4F9'; }}
+              onMouseLeave={e=>{ e.currentTarget.style.background='none'; }}
+            >Cancel</button>
+            <button
+              onClick={onCommit}
+              style={{
+                padding:'5px 13px',fontSize:12.5,fontFamily:'inherit',
+                border:'none',borderRadius:6,cursor:'pointer',
+                background:'#4B6EF5',color:'#fff',fontWeight:500,
+                transition:'opacity .12s',
+              }}
+              onMouseEnter={e=>{ e.currentTarget.style.opacity='0.85'; }}
+              onMouseLeave={e=>{ e.currentTarget.style.opacity='1'; }}
+            >Apply</button>
+          </div>
         </div>
       </Popover.Content>
     </Popover.Portal>
@@ -599,7 +661,7 @@ function FilterCell({col, filter, condition, onChange, onConditionChange, onClea
   };
 
   return (
-    <Popover.Root open={open} onOpenChange={v => { if (!v) commit(); else setOpen(true); }}>
+    <Popover.Root open={open} onOpenChange={v => { if (!v) cancel(); else setOpen(true); }}>
       <div style={{
         display:'flex',alignItems:'center',
         overflow:'hidden',
@@ -962,13 +1024,15 @@ export default function FinanceGrid() {
   const colAvailableVals = useMemo(() => {
     const result = {};
     COLS.filter(c => c.type === 'select').forEach(targetCol => {
+      const otherFilters = COLS.filter(col => col.key !== targetCol.key && colFilters[col.key]);
+      if (!otherFilters.length) {
+        result[targetCol.key] = null;
+        return;
+      }
       let d = DATA;
-      COLS.forEach(col => {
-        if (col.key === targetCol.key) return;
-        const f = colFilters[col.key];
-        if (!f) return;
+      otherFilters.forEach(col => {
         const cond = colConditions[col.key] ?? defaultCondition(col.type);
-        d = applyColFilter(d, col, f, cond);
+        d = applyColFilter(d, col, colFilters[col.key], cond);
       });
       result[targetCol.key] = new Set(d.map(row => row[targetCol.key]));
     });
