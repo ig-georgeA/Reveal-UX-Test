@@ -1,9 +1,9 @@
 import { useState, useMemo, useEffect } from "react";
 import * as Popover from '@radix-ui/react-popover';
-import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
+
 import {
   contains, doesNotContain, equals, notEqual,
-  greaterThan, greaterThanOrEqual, lessThan, lessThanOrEqual,
+  greaterThan, lessThan,
   addFilter, customFilter
 } from '@igniteui/material-icons-extended';
 
@@ -49,15 +49,15 @@ function fmtAmt(n) { return new Intl.NumberFormat('en-US',{style:'currency',curr
 
 function genData() {
   const rows = [];
-  const base = new Date(2024,11,31);
+  const base = new Date();
   const amtRange = {
     Mortgage:[1400,3200], 'Car Payment':[260,780], Groceries:[38,270], Dining:[10,115],
     Subscriptions:[5,60], Streaming:[8,22], Electric:[58,340], Phone:[39,195],
     Internet:[49,120], Water:[18,95], Gas:[28,175], Insurance:[75,390],
     Healthcare:[14,480], Gym:[18,95], Entertainment:[10,190],
   };
-  for (let i=0;i<115;i++) {
-    const daysAgo = Math.floor(rnd(0,365));
+  for (let i=0;i<500;i++) {
+    const daysAgo = Math.floor(rnd(0,3*365));
     const d = new Date(base);
     d.setDate(d.getDate()-daysAgo);
     const cat = CATEGORIES[Math.floor(Math.random()*CATEGORIES.length)];
@@ -165,19 +165,13 @@ const CONDITIONS = {
     { key:'notIn', label:'Is None Of',icon: customFilter },
   ],
   date: [
-    { key:'between',     label:'Is Between',       icon: equals },
-    { key:'before',      label:'Is Before',        icon: lessThan },
-    { key:'after',       label:'Is After',         icon: greaterThan },
-    { key:'on',          label:'Is On',            icon: equals },
+    { key:'between', label:'Date Range', icon: equals },
   ],
   number: [
-    { key:'between',  label:'Is Between',        icon: equals },
-    { key:'eq',       label:'Equals',            icon: equals },
-    { key:'neq',      label:'Not Equal',         icon: notEqual },
-    { key:'gt',       label:'Greater Than',      icon: greaterThan },
-    { key:'gte',      label:'Greater or Equal',  icon: greaterThanOrEqual },
-    { key:'lt',       label:'Less Than',         icon: lessThan },
-    { key:'lte',      label:'Less or Equal',     icon: lessThanOrEqual },
+    { key:'between', label:'Between',   icon: equals },
+    { key:'gte',     label:'At Least',  icon: greaterThan },
+    { key:'lte',     label:'At Most',   icon: lessThan },
+    { key:'eq',      label:'Equals',    icon: equals },
   ],
 };
 
@@ -205,7 +199,6 @@ function filterSummary(filter, type, condition) {
   if (type==='date') {
     if (condition === 'between') {
       if (filter.from && filter.to) {
-        // Check if this range matches a known preset label
         const preset = getDatePresets().find(p => p.from === filter.from && p.to === filter.to);
         if (preset) return preset.label;
         return `${filter.from} – ${filter.to}`;
@@ -214,17 +207,19 @@ function filterSummary(filter, type, condition) {
       if (filter.to) return `until ${filter.to}`;
       return null;
     }
-    return filter.from || filter.to || null;
+    const val = filter.from || filter.to;
+    if (!val) return null;
+    if (condition === 'before') return `< ${val}`;
+    if (condition === 'after')  return `> ${val}`;
+    return val;
   }
   if (type==='number') {
-    if (condition === 'between') {
-      if (filter.min!==undefined&&filter.max!==undefined) return `$${filter.min}–$${filter.max}`;
-      if (filter.min!==undefined) return `≥ $${filter.min}`;
-      if (filter.max!==undefined) return `≤ $${filter.max}`;
-      return null;
-    }
-    if (filter.min !== undefined) return `${condLabel} $${filter.min}`;
-    if (filter.max !== undefined) return `${condLabel} $${filter.max}`;
+    if (condition === 'gte') return filter.min !== undefined ? `≥ $${filter.min}` : null;
+    if (condition === 'lte') return filter.max !== undefined ? `≤ $${filter.max}` : null;
+    if (condition === 'eq')  return filter.min !== undefined ? `= $${filter.min}` : null;
+    if (filter.min!==undefined && filter.max!==undefined) return `$${filter.min} – $${filter.max}`;
+    if (filter.min!==undefined) return `≥ $${filter.min}`;
+    if (filter.max!==undefined) return `≤ $${filter.max}`;
     return null;
   }
   return null;
@@ -290,7 +285,12 @@ function FilterPopoverContent({ col, value, condition, uniqueVals, initialSelect
   const draftIsEmpty = normalizeFilterValue(col.type, value) === null;
   const [selectQuery, setSelectQuery] = useState('');
   const [showDatePresets, setShowDatePresets] = useState(false);
+  const [showAmountFilters, setShowAmountFilters] = useState(false);
   const [showDisabled, setShowDisabled] = useState(false);
+
+  const activePresetLabel = col.type === 'date'
+    ? (getDatePresets().find(p => p.from === value?.from && p.to === value?.to)?.label ?? 'Custom Date Range')
+    : null;
 
   // Auto-select entries matching the typed query — appends to existing selection
   // Only considers items that aren't filtered out by other columns.
@@ -324,7 +324,7 @@ function FilterPopoverContent({ col, value, condition, uniqueVals, initialSelect
   const disabledOther  = filteredVals.filter(v => !initialSelectedSet.has(v) && availableVals && !availableVals.has(v));
 
   const isSingleVal = col.type === 'number' && condition !== 'between';
-  const singleKey   = ['gt','gte','lt','lte','eq','neq'].includes(condition) ? (condition.startsWith('lt')?'max':'min') : null;
+  const singleKey   = condition === 'lte' ? 'max' : 'min';
 
   return (
     <Popover.Portal>
@@ -477,10 +477,9 @@ function FilterPopoverContent({ col, value, condition, uniqueVals, initialSelect
           </div>
         )}
 
-        {/* Date range */}
+        {/* Date */}
         {col.type === 'date' && (
           <div style={{display:'flex',flexDirection:'column',gap:8}}>
-            {/* Date Presets drilldown */}
             <div>
               <button
                 onClick={()=>setShowDatePresets(p=>!p)}
@@ -495,76 +494,125 @@ function FilterPopoverContent({ col, value, condition, uniqueVals, initialSelect
                 onMouseEnter={e=>{ if(!showDatePresets) e.currentTarget.style.background='#F5F4F9'; }}
                 onMouseLeave={e=>{ if(!showDatePresets) e.currentTarget.style.background='none'; }}
               >
-                <span style={{fontWeight:500,color:showDatePresets?'#4B6EF5':'#575064'}}>Date Filters</span>
+                <span style={{fontWeight:500,color:showDatePresets?'#4B6EF5':'inherit'}}>
+                  {activePresetLabel}
+                </span>
                 {showDatePresets ? <ChevronDown/> : <ChevronRight/>}
               </button>
               {showDatePresets && (
                 <div style={{marginTop:4,border:'0.5px solid #E8E4EF',borderRadius:6,overflow:'hidden'}}>
-                  {getDatePresets().map(p=>(
-                    <button key={p.label}
-                      onClick={()=>onApplyPreset(p.from,p.to)}
-                      style={{
-                        display:'block',width:'100%',padding:'7px 14px',boxSizing:'border-box',
-                        background:'none',border:'none',borderBottom:'0.5px solid #F1EFF5',
-                        cursor:'pointer',fontSize:13,fontFamily:'inherit',
-                        textAlign:'left',color:'#575064',transition:'background .12s',
-                      }}
-                      onMouseEnter={e=>e.currentTarget.style.background='#F5F4F9'}
-                      onMouseLeave={e=>e.currentTarget.style.background='none'}
-                    >{p.label}</button>
-                  ))}
+                  {[{label:'Custom Date Range'},...getDatePresets()].map(p => {
+                    const isActive = activePresetLabel === p.label;
+                    return (
+                      <button key={p.label}
+                        onClick={()=>{
+                          onValueChange(p.label==='Custom Date Range' ? {} : {from:p.from,to:p.to});
+                          setShowDatePresets(false);
+                        }}
+                        style={{
+                          display:'flex',alignItems:'center',justifyContent:'space-between',
+                          width:'100%',padding:'7px 14px',boxSizing:'border-box',
+                          background: isActive ? '#EEF1FF' : 'none',
+                          border:'none',borderBottom:'0.5px solid #F1EFF5',
+                          cursor:'pointer',fontSize:13,fontFamily:'inherit',
+                          textAlign:'left',color: isActive ? '#4B6EF5' : '#575064',
+                          transition:'background .12s',fontWeight: isActive ? 500 : 400,
+                        }}
+                        onMouseEnter={e=>{ if(!isActive) e.currentTarget.style.background='#F5F4F9'; }}
+                        onMouseLeave={e=>{ e.currentTarget.style.background=isActive?'#EEF1FF':'none'; }}
+                      >
+                        <span>{p.label}</span>
+                        {isActive && <span style={{color:'#4B6EF5',fontSize:11}}>✓</span>}
+                      </button>
+                    );
+                  })}
                 </div>
               )}
               <div style={{height:1,background:'#E8E4EF',margin:'8px 0 4px'}}/>
             </div>
-
-            {condition === 'between' ? (
-              ['from','to'].map(k => (
-                <div key={k}>
-                  <div style={{fontSize:11,color:'#877F93',textTransform:'uppercase',letterSpacing:.4,marginBottom:3}}>{k==='from'?'From':'To'}</div>
-                  <input type="date" value={(value&&value[k])||''}
-                    style={{width:'100%',fontSize:13,boxSizing:'border-box',padding:'6px 8px',
-                      border:'0.5px solid #DCD7E5',borderRadius:6,outline:'none',fontFamily:'inherit'}}
-                    onChange={e=>onValueChange(p=>({...(p||{}),[k]:e.target.value}))}/>
-                </div>
-              ))
-            ) : (
-              <div>
-                <div style={{fontSize:11,color:'#877F93',textTransform:'uppercase',letterSpacing:.4,marginBottom:3}}>Date</div>
-                <input type="date" autoFocus value={(value&&value.from)||''}
+            {['from','to'].map(k => (
+              <div key={k}>
+                <div style={{fontSize:11,color:'#877F93',textTransform:'uppercase',letterSpacing:.4,marginBottom:3}}>{k==='from'?'From':'To'}</div>
+                <input type="date" value={(value&&value[k])||''}
                   style={{width:'100%',fontSize:13,boxSizing:'border-box',padding:'6px 8px',
                     border:'0.5px solid #DCD7E5',borderRadius:6,outline:'none',fontFamily:'inherit'}}
-                  onChange={e=>onValueChange({from:e.target.value,to:e.target.value})}/>
+                  onChange={e=>onValueChange(p=>({...(p||{}),[k]:e.target.value}))}/>
               </div>
-            )}
+            ))}
           </div>
         )}
 
         {/* Number */}
         {col.type === 'number' && (
-          isSingleVal && singleKey ? (
+          <div style={{display:'flex',flexDirection:'column',gap:8}}>
             <div>
-              <div style={{fontSize:11,color:'#877F93',textTransform:'uppercase',letterSpacing:.4,marginBottom:3}}>Amount ($)</div>
-              <input type="number" autoFocus placeholder="0"
-                value={(value&&value[singleKey]!==undefined)?value[singleKey]:''}
-                style={{width:'100%',fontSize:13,boxSizing:'border-box',padding:'6px 8px',
-                  border:'0.5px solid #DCD7E5',borderRadius:6,outline:'none',fontFamily:'inherit'}}
-                onChange={e=>onValueChange({[singleKey]:e.target.value!==''?parseFloat(e.target.value):undefined})}/>
-            </div>
-          ) : (
-            <div style={{display:'flex',gap:8}}>
-              {[['min','Min ($)'],['max','Max ($)']].map(([k,lbl])=>(
-                <div key={k} style={{flex:1}}>
-                  <div style={{fontSize:11,color:'#877F93',textTransform:'uppercase',letterSpacing:.4,marginBottom:3}}>{lbl}</div>
-                  <input type="number" placeholder={k==='min'?'0':'∞'}
-                    style={{width:'100%',fontSize:13,boxSizing:'border-box',padding:'6px 8px',
-                      border:'0.5px solid #DCD7E5',borderRadius:6,outline:'none',fontFamily:'inherit'}}
-                    value={(value&&value[k]!==undefined)?value[k]:''}
-                    onChange={e=>onValueChange(p=>({...(p||{}),[k]:e.target.value!==''?parseFloat(e.target.value):undefined}))}/>
+              <button
+                onClick={()=>setShowAmountFilters(p=>!p)}
+                style={{
+                  display:'flex',alignItems:'center',justifyContent:'space-between',
+                  width:'100%',padding:'7px 10px',boxSizing:'border-box',
+                  background:showAmountFilters?'#EEF1FF':'none',
+                  border:'0.5px solid #E8E4EF',borderRadius:6,
+                  cursor:'pointer',fontSize:13,fontFamily:'inherit',
+                  color:'#575064',transition:'background .12s',
+                }}
+                onMouseEnter={e=>{ if(!showAmountFilters) e.currentTarget.style.background='#F5F4F9'; }}
+                onMouseLeave={e=>{ if(!showAmountFilters) e.currentTarget.style.background='none'; }}
+              >
+                <span style={{fontWeight:500,color:showAmountFilters?'#4B6EF5':'#575064'}}>{CONDITIONS.number.find(c=>c.key===condition)?.label ?? 'Between'}</span>
+                {showAmountFilters ? <ChevronDown/> : <ChevronRight/>}
+              </button>
+              {showAmountFilters && (
+                <div style={{marginTop:4,border:'0.5px solid #E8E4EF',borderRadius:6,overflow:'hidden'}}>
+                  {CONDITIONS.number.map(c=>(
+                    <button key={c.key}
+                      onClick={()=>{ onApplyPreset(c.key); setShowAmountFilters(false); }}
+                      style={{
+                        display:'flex',alignItems:'center',
+                        width:'100%',padding:'7px 14px',boxSizing:'border-box',
+                        background: condition===c.key ? '#EEF1FF' : 'none',
+                        border:'none',borderBottom:'0.5px solid #F1EFF5',
+                        cursor:'pointer',fontSize:13,fontFamily:'inherit',
+                        textAlign:'left',color: condition===c.key ? '#4B6EF5' : '#575064',
+                        transition:'background .12s',fontWeight: condition===c.key ? 500 : 400,
+                      }}
+                      onMouseEnter={e=>{ if(condition!==c.key) e.currentTarget.style.background='#F5F4F9'; }}
+                      onMouseLeave={e=>{ if(condition!==c.key) e.currentTarget.style.background=condition===c.key?'#EEF1FF':'none'; }}
+                    >{c.label}</button>
+                  ))}
                 </div>
-              ))}
+              )}
+              <div style={{height:1,background:'#E8E4EF',margin:'8px 0 4px'}}/>
             </div>
-          )
+            {isSingleVal ? (
+              <div>
+                <div style={{fontSize:11,color:'#877F93',textTransform:'uppercase',letterSpacing:.4,marginBottom:3}}>
+                  {condition==='gte' ? 'At least ($)' : condition==='lte' ? 'At most ($)' : 'Amount ($)'}
+                </div>
+                <input type="number" autoFocus placeholder="0"
+                  value={(value&&value[singleKey]!==undefined)?value[singleKey]:''}
+                  style={{width:'100%',fontSize:13,boxSizing:'border-box',padding:'6px 8px',
+                    border:'0.5px solid #DCD7E5',borderRadius:6,outline:'none',fontFamily:'inherit'}}
+                  onChange={e=>{
+                    const v = e.target.value!=='' ? parseFloat(e.target.value) : undefined;
+                    onValueChange(condition==='eq' ? {min:v,max:v} : {[singleKey]:v});
+                  }}/>
+              </div>
+            ) : (
+              <>
+                {[['min','Min ($)','0'],['max','Max ($)','']].map(([k,lbl,ph])=>(
+                  <div key={k}>
+                    <div style={{fontSize:11,color:'#877F93',textTransform:'uppercase',letterSpacing:.4,marginBottom:3}}>{lbl}</div>
+                    <input type="number" autoFocus={k==='min'} placeholder={ph}
+                      style={{width:'100%',fontSize:13,boxSizing:'border-box',padding:'6px 8px',
+                        border:'0.5px solid #DCD7E5',borderRadius:6,outline:'none',fontFamily:'inherit'}}
+                      value={(value&&value[k]!==undefined)?value[k]:''}
+                      onChange={e=>onValueChange(p=>({...(p||{}),[k]:e.target.value!==''?parseFloat(e.target.value):undefined}))}/>
+                  </div>
+                ))}
+              </>
+            )}
+          </div>
         )}
 
         {/* Footer: CLEAR (left) | CANCEL APPLY (right) */}
@@ -611,7 +659,7 @@ function FilterPopoverContent({ col, value, condition, uniqueVals, initialSelect
   );
 }
 
-function FilterCell({col, filter, condition, onChange, onConditionChange, onClear, availableVals}) {
+function FilterCell({col, filter, condition, onChange, onClear, availableVals}) {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(() => filter ?? emptyFilterValue(col.type));
   const [draftCond, setDraftCond] = useState(() => condition ?? defaultCondition(col.type));
@@ -624,7 +672,12 @@ function FilterCell({col, filter, condition, onChange, onConditionChange, onClea
     if (open) {
       // Defer to avoid synchronous state update in effect
       const tid = setTimeout(() => {
-        const currentFilter = filter ?? emptyFilterValue(col.type);
+        let currentFilter = filter ?? emptyFilterValue(col.type);
+        // Default date filter to Last 30 Days if no filter is set
+        if (col.type === 'date' && !currentFilter?.from && !currentFilter?.to) {
+          const p30 = getDatePresets().find(p => p.label === 'Last 30 Days');
+          if (p30) currentFilter = { from: p30.from, to: p30.to };
+        }
         setDraft(currentFilter);
         setDraftCond(condition ?? defaultCondition(col.type));
         // Snapshot which items are selected right now
@@ -637,11 +690,6 @@ function FilterCell({col, filter, condition, onChange, onConditionChange, onClea
   const active = hasActiveFilter(filter, col.type, condition);
   const summary = filterSummary(filter, col.type, condition);
   const tooltip = filterTooltip(filter, col.type, condition);
-  const condList = CONDITIONS[col.type] || [];
-  const activeCond = condList.find(c => c.key === (condition ?? defaultCondition(col.type)));
-  const isDatePreset = col.type === 'date' && active &&
-    getDatePresets().some(p => p.from === filter?.from && p.to === filter?.to);
-
   const commit = () => {
     onChange(normalizeFilterValue(col.type, draft), draftCond);
     setOpen(false);
@@ -656,6 +704,30 @@ function FilterCell({col, filter, condition, onChange, onConditionChange, onClea
     setOpen(false);
   };
   const applyPreset = (from, to) => {
+    if (col.type === 'number') {
+      const newCond = from;
+      const cur = draft;
+      let newVal = {};
+      if (newCond === 'between') {
+        newVal = { min: cur.min ?? cur.max, max: cur.max };
+      } else if (newCond === 'gte') {
+        newVal = { min: cur.min ?? cur.max };
+      } else if (newCond === 'lte') {
+        newVal = { max: cur.max ?? cur.min };
+      } else if (newCond === 'eq') {
+        const v = cur.min ?? cur.max;
+        newVal = { min: v, max: v };
+      }
+      setDraftCond(newCond);
+      setDraft(newVal);
+      return;
+    }
+    if (col.type === 'date') {
+      // Preset range — fill From/To inputs
+      setDraftCond('between');
+      setDraft({ from, to });
+      return;
+    }
     onChange(normalizeFilterValue(col.type, {from, to}), 'between');
     setOpen(false);
   };
@@ -675,59 +747,7 @@ function FilterCell({col, filter, condition, onChange, onConditionChange, onClea
             display:'flex',alignItems:'center',padding:'0 6px',gap:4,
             width:'100%',height:'100%',boxSizing:'border-box',
           }}>
-            {/* Condition dropdown — hidden for date presets */}
-            {!isDatePreset && <DropdownMenu.Root>
-              <DropdownMenu.Trigger asChild>
-                <button
-                  title={activeCond?.label}
-                  style={{
-                    display:'flex',alignItems:'center',justifyContent:'center',
-                    gap:2,padding:'0 4px',height:26,borderRadius:5,
-                    background:'none',border:'none',
-                    cursor:'pointer',color:'#4B6EF5',flexShrink:0,
-                    transition:'background .12s',
-                  }}
-                  onMouseEnter={e=>e.currentTarget.style.background='#EEF1FF'}
-                  onMouseLeave={e=>e.currentTarget.style.background='none'}
-                >
-                  {activeCond && <IgxIcon icon={activeCond.icon} size={13} />}
-                  <ChevronDown/>
-                </button>
-              </DropdownMenu.Trigger>
-              <DropdownMenu.Portal>
-                <DropdownMenu.Content
-                  sideOffset={4}
-                  align="start"
-                  style={{
-                    background:'#FFFFFF',border:'0.5px solid #DCD7E5',
-                    borderRadius:8,padding:'4px',
-                    boxShadow:'0 4px 16px rgba(0,0,0,0.12)',
-                    zIndex:10000,minWidth:190,
-                    fontFamily:'"Inter","Segoe UI",sans-serif',
-                  }}
-                >
-                  {condList.map(c => (
-                    <DropdownMenu.Item
-                      key={c.key}
-                      onSelect={() => { onConditionChange(c.key); }}
-                      style={{
-                        display:'flex',alignItems:'center',gap:8,
-                        padding:'7px 10px',cursor:'pointer',
-                        fontSize:13,borderRadius:5,outline:'none',
-                        color: c.key === (condition ?? defaultCondition(col.type)) ? '#4B6EF5' : '#575064',
-                        background: c.key === (condition ?? defaultCondition(col.type)) ? '#EEF1FF' : 'transparent',
-                        fontWeight: c.key === (condition ?? defaultCondition(col.type)) ? 500 : 400,
-                      }}
-                      onMouseEnter={e=>{ e.currentTarget.style.background='#F5F4F9'; }}
-                      onMouseLeave={e=>{ e.currentTarget.style.background = c.key === (condition ?? defaultCondition(col.type)) ? '#EEF1FF':'transparent'; }}
-                    >
-                      <IgxIcon icon={c.icon} size={14} />
-                      {c.label}
-                    </DropdownMenu.Item>
-                  ))}
-                </DropdownMenu.Content>
-              </DropdownMenu.Portal>
-            </DropdownMenu.Root>}
+
 
             {/* Value chip */}
             <div style={{
@@ -1001,7 +1021,6 @@ export default function FinanceGrid() {
     setColFilters(p => { const n={...p}; delete n[key]; return n; });
     setColConditions(p => { const n={...p}; delete n[key]; return n; });
   };
-  const setCondition = (key, cond) => setColConditions(p => ({...p, [key]: cond}));
 
   const filtered = useMemo(()=>{
     let d=[...DATA];
@@ -1037,14 +1056,13 @@ export default function FinanceGrid() {
       result[targetCol.key] = new Set(d.map(row => row[targetCol.key]));
     });
     return result;
-  }, [colFilters, colConditions]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [colFilters, colConditions]);
 
   const totalDebit = filtered.filter(t=>t.type==='Debit').reduce((s,t)=>s+t.amount,0);
   const totalCredit = filtered.filter(t=>t.type==='Credit').reduce((s,t)=>s+t.amount,0);
 
-  // Width for a fixed column when a chip is active:
-  // chip maxWidth(180) + condition button(~34) + padding(12) + gap(4) = 230px
-  const ACTIVE_COL_W = 230;
+  // Chip = maxWidth:120 + outer padding 6+6 = 132px minimum column width
+  const CHIP_COL_W = 132;
   const gridTemplate = COLS.map(col => {
     if (col.flex) return `${col.flex}fr`;
     const active = hasActiveFilter(
@@ -1052,7 +1070,7 @@ export default function FinanceGrid() {
       col.type,
       colConditions[col.key] ?? defaultCondition(col.type)
     );
-    return `${active ? Math.max(col.width, ACTIVE_COL_W) : col.width}px`;
+    return `${active ? Math.max(col.width, CHIP_COL_W) : col.width}px`;
   }).join(' ');
 
   return (
@@ -1114,7 +1132,6 @@ export default function FinanceGrid() {
                 filter={colFilters[col.key]}
                 condition={colConditions[col.key] ?? defaultCondition(col.type)}
                 onChange={(v,cond)=>setFilter(col.key,v,cond)}
-                onConditionChange={cond=>setCondition(col.key,cond)}
                 onClear={()=>clearFilter(col.key)}
                 availableVals={col.type==='select' ? colAvailableVals[col.key] : undefined}
               />
