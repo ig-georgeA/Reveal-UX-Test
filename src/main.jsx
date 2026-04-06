@@ -6,7 +6,7 @@ import FinanceGrid from './finance_grid.jsx'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <BrowserRouter>
+    <BrowserRouter basename="/Reveal-UX-Test/">
       <Routes>
         <Route path="/" element={<FinanceGrid />} />
         <Route path="*" element={<Navigate to="/" replace />} />
