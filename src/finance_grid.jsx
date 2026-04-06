@@ -281,7 +281,7 @@ function getDatePresets() {
 // ── Popover content built with Radix Popover ────────────────────────────────
 // initialSelectedSet: snapshot of which items were selected when the popover
 // opened — used to freeze grouping so items don't jump as checkboxes change.
-function FilterPopoverContent({ col, value, condition, uniqueVals, initialSelectedSet, availableVals, onValueChange, onCommit, onCancel, onClearAll, onApplyPreset }) {
+function FilterPopoverContent({ col, value, condition, uniqueVals, initialSelectedSet, availableVals, onValueChange, onCommit, onCancel, onClearText, onApplyPreset }) {
   const draftIsEmpty = normalizeFilterValue(col.type, value) === null;
   const [selectQuery, setSelectQuery] = useState('');
   const [showDatePresets, setShowDatePresets] = useState(false);
@@ -381,33 +381,40 @@ function FilterPopoverContent({ col, value, condition, uniqueVals, initialSelect
               <div style={{overflowY:'auto',flex:1,minHeight:0}}>
                 {/* Render using open-time snapshot order; live value drives checkbox state */}
                 {selectedVals.map(v => (
-                  <label key={`s-${v}`} style={{display:'flex',alignItems:'center',gap:8,
-                    padding:'6px 10px',cursor:'pointer',fontSize:13,color:'#575064',
-                    background:'#F8F7FA'}}>
+                  <label key={`s-${v}`}
+                    onMouseEnter={e=>e.currentTarget.style.background='#E8ECFE'}
+                    onMouseLeave={e=>e.currentTarget.style.background='#F0F1FC'}
+                    style={{display:'flex',alignItems:'center',justifyContent:'space-between',
+                      padding:'6px 10px',cursor:'pointer',fontSize:13,color:'#575064',
+                      background:'#F0F1FC',transition:'background .1s'}}>
+                    <span style={{flex:1,minWidth:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{v}</span>
                     <input type="checkbox"
                       checked={Array.isArray(value) && value.includes(v)}
                       onChange={()=>{
                         const arr=Array.isArray(value)?[...value]:[];
                         const next = arr.includes(v) ? arr.filter(x=>x!==v) : [...arr,v];
                         onValueChange(next);
-                      }} style={{accentColor:'#6988FF',flexShrink:0}}/>
-                    {v}
+                      }} style={{accentColor:'#6988FF',flexShrink:0,marginLeft:10}}/>
                   </label>
                 ))}
                 {selectedVals.length > 0 && (availableOther.length > 0 || disabledOther.length > 0) && (
                   <div style={{height:1,background:'#E8E4EF',margin:'2px 0'}} />
                 )}
                 {availableOther.map(v => (
-                  <label key={`o-${v}`} style={{display:'flex',alignItems:'center',gap:8,
-                    padding:'6px 10px',cursor:'pointer',fontSize:13,color:'#575064'}}>
+                  <label key={`o-${v}`}
+                    onMouseEnter={e=>e.currentTarget.style.background='#F5F4F9'}
+                    onMouseLeave={e=>e.currentTarget.style.background='transparent'}
+                    style={{display:'flex',alignItems:'center',justifyContent:'space-between',
+                      padding:'6px 10px',cursor:'pointer',fontSize:13,color:'#575064',
+                      background:'transparent',transition:'background .1s'}}>
+                    <span style={{flex:1,minWidth:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{v}</span>
                     <input type="checkbox"
                       checked={Array.isArray(value) && value.includes(v)}
                       onChange={()=>{
                         const arr=Array.isArray(value)?[...value]:[];
                         const next = arr.includes(v) ? arr.filter(x=>x!==v) : [...arr,v];
                         onValueChange(next);
-                      }} style={{accentColor:'#6988FF',flexShrink:0}}/>
-                    {v}
+                      }} style={{accentColor:'#6988FF',flexShrink:0,marginLeft:10}}/>
                   </label>
                 ))}
                 {showDisabled && disabledOther.length > 0 && (
@@ -436,12 +443,12 @@ function FilterPopoverContent({ col, value, condition, uniqueVals, initialSelect
                     {disabledOther.map(v => (
                       <label key={`d-${v}`}
                         title="Filtered out by another column"
-                        style={{display:'flex',alignItems:'center',gap:8,
+                        style={{display:'flex',alignItems:'center',justifyContent:'space-between',
                           padding:'6px 10px',cursor:'not-allowed',fontSize:13,
                           color:'#C4BFD0',userSelect:'none',background:'#FFFBF2'}}>
+                        <span style={{flex:1,minWidth:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{v}</span>
                         <input type="checkbox" disabled checked={false}
-                          style={{accentColor:'#6988FF',flexShrink:0,cursor:'not-allowed'}}/>
-                        {v}
+                          style={{accentColor:'#6988FF',flexShrink:0,cursor:'not-allowed',marginLeft:10}}/>
                       </label>
                     ))}
                   </>
@@ -615,44 +622,33 @@ function FilterPopoverContent({ col, value, condition, uniqueVals, initialSelect
           </div>
         )}
 
-        {/* Footer: CLEAR (left) | CANCEL APPLY (right) */}
-        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginTop:12,paddingTop:10,borderTop:'0.5px solid #E8E4EF'}}>
+        {/* Footer: CLEAR (text only, left) | APPLY (right) */}
+        <div style={{display:'flex',justifyContent: col.type === 'select' ? 'space-between' : 'flex-end',alignItems:'center',marginTop:12,paddingTop:10,borderTop:'0.5px solid #E8E4EF'}}>
+          {col.type === 'select' && (
+            <button
+              disabled={draftIsEmpty}
+              onClick={onClearText}
+              style={{
+                padding:'5px 8px',fontSize:12.5,fontFamily:'inherit',
+                border:'none',borderRadius:6,cursor:draftIsEmpty?'default':'pointer',
+                background:'none',color:draftIsEmpty?'#C4BFD0':'#877F93',
+                transition:'color .12s',
+              }}
+              onMouseEnter={e=>{ if(!draftIsEmpty) e.currentTarget.style.color='#4B6EF5'; }}
+              onMouseLeave={e=>{ if(!draftIsEmpty) e.currentTarget.style.color='#877F93'; }}
+            >Clear</button>
+          )}
           <button
-            disabled={draftIsEmpty}
-            onClick={onClearAll}
+            onClick={onCommit}
             style={{
-              padding:'5px 8px',fontSize:12.5,fontFamily:'inherit',
-              border:'none',borderRadius:6,cursor:draftIsEmpty?'default':'pointer',
-              background:'none',color:draftIsEmpty?'#C4BFD0':'#877F93',
-              transition:'color .12s',
+              padding:'5px 13px',fontSize:12.5,fontFamily:'inherit',
+              border:'none',borderRadius:6,cursor:'pointer',
+              background:'#4B6EF5',color:'#fff',fontWeight:500,
+              transition:'opacity .12s',
             }}
-            onMouseEnter={e=>{ if(!draftIsEmpty) e.currentTarget.style.color='#4B6EF5'; }}
-            onMouseLeave={e=>{ if(!draftIsEmpty) e.currentTarget.style.color='#877F93'; }}
-          >Clear</button>
-          <div style={{display:'flex',gap:6}}>
-            <button
-              onClick={onCancel}
-              style={{
-                padding:'5px 13px',fontSize:12.5,fontFamily:'inherit',
-                border:'0.5px solid #DCD7E5',borderRadius:6,cursor:'pointer',
-                background:'none',color:'#575064',
-                transition:'background .12s',
-              }}
-              onMouseEnter={e=>{ e.currentTarget.style.background='#F5F4F9'; }}
-              onMouseLeave={e=>{ e.currentTarget.style.background='none'; }}
-            >Cancel</button>
-            <button
-              onClick={onCommit}
-              style={{
-                padding:'5px 13px',fontSize:12.5,fontFamily:'inherit',
-                border:'none',borderRadius:6,cursor:'pointer',
-                background:'#4B6EF5',color:'#fff',fontWeight:500,
-                transition:'opacity .12s',
-              }}
-              onMouseEnter={e=>{ e.currentTarget.style.opacity='0.85'; }}
-              onMouseLeave={e=>{ e.currentTarget.style.opacity='1'; }}
-            >Apply</button>
-          </div>
+            onMouseEnter={e=>{ e.currentTarget.style.opacity='0.85'; }}
+            onMouseLeave={e=>{ e.currentTarget.style.opacity='1'; }}
+          >Apply</button>
         </div>
       </Popover.Content>
     </Popover.Portal>
@@ -698,10 +694,9 @@ function FilterCell({col, filter, condition, onChange, onClear, availableVals}) 
     setDraft(filter ?? emptyFilterValue(col.type));
     setOpen(false);
   };
-  const clearAll = () => {
-    onClear();
+  const clearText = () => {
     setDraft(emptyFilterValue(col.type));
-    setOpen(false);
+    // keeps popover open; actual commit happens on Apply
   };
   const applyPreset = (from, to) => {
     if (col.type === 'number') {
@@ -821,7 +816,7 @@ function FilterCell({col, filter, condition, onChange, onClear, availableVals}) 
           onValueChange={setDraft}
           onCommit={commit}
           onCancel={cancel}
-          onClearAll={clearAll}
+          onClearText={clearText}
           onApplyPreset={applyPreset}
         />
       )}
